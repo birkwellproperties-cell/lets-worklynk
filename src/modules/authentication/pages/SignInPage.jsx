@@ -1,16 +1,86 @@
 ﻿import {
+  AlertCircle,
   ArrowRight,
+  LoaderCircle,
   LockKeyhole,
   Mail,
 } from "lucide-react";
 
 import {
+  useState,
+} from "react";
+
+import {
   Link,
+  useLocation,
+  useNavigate,
 } from "react-router";
 
+import {
+  useAuth,
+} from "../../../platform/auth";
+
 export default function SignInPage() {
-  function handleSubmit(event) {
+  const {
+    signIn,
+  } = useAuth();
+
+  const navigate =
+    useNavigate();
+
+  const location =
+    useLocation();
+
+  const [
+    email,
+    setEmail,
+  ] = useState("");
+
+  const [
+    password,
+    setPassword,
+  ] = useState("");
+
+  const [
+    submitting,
+    setSubmitting,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  async function handleSubmit(event) {
     event.preventDefault();
+
+    setSubmitting(true);
+    setError("");
+
+    try {
+      await signIn({
+        email,
+        password,
+      });
+
+      const destination =
+        location.state?.from
+          ?.pathname || "/app";
+
+      navigate(
+        destination,
+        {
+          replace: true,
+        },
+      );
+    } catch (signInError) {
+      setError(
+        signInError?.message ||
+          "Unable to sign in. Verify your credentials and try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -27,6 +97,17 @@ export default function SignInPage() {
         Access your organization, marketplace activity,
         assignments, and payments.
       </p>
+
+      {error && (
+        <div className="mt-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <AlertCircle
+            size={19}
+            className="mt-0.5 shrink-0"
+          />
+
+          <span>{error}</span>
+        </div>
+      )}
 
       <form
         className="mt-8 space-y-5"
@@ -47,8 +128,13 @@ export default function SignInPage() {
               type="email"
               autoComplete="email"
               required
+              value={email}
+              disabled={submitting}
+              onChange={(event) => {
+                setEmail(event.target.value);
+              }}
               placeholder="name@company.com"
-              className="min-h-12 w-full border-0 bg-transparent py-3 outline-none"
+              className="min-h-12 w-full border-0 bg-transparent py-3 outline-none disabled:cursor-not-allowed disabled:opacity-60"
             />
           </span>
         </label>
@@ -68,8 +154,13 @@ export default function SignInPage() {
               type="password"
               autoComplete="current-password"
               required
+              value={password}
+              disabled={submitting}
+              onChange={(event) => {
+                setPassword(event.target.value);
+              }}
               placeholder="Enter your password"
-              className="min-h-12 w-full border-0 bg-transparent py-3 outline-none"
+              className="min-h-12 w-full border-0 bg-transparent py-3 outline-none disabled:cursor-not-allowed disabled:opacity-60"
             />
           </span>
         </label>
@@ -78,25 +169,39 @@ export default function SignInPage() {
           <label className="inline-flex items-center gap-2 font-medium text-slate-600">
             <input
               type="checkbox"
+              disabled={submitting}
               className="h-4 w-4 rounded border-slate-300"
             />
             Remember me
           </label>
 
-          <a
-            href="/#"
+          <Link
+            to="/forgot-password"
             className="font-semibold text-blue-600 hover:text-blue-700"
           >
             Forgot password?
-          </a>
+          </Link>
         </div>
 
         <button
           type="submit"
-          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 font-bold text-white shadow-sm transition hover:bg-blue-700"
+          disabled={submitting}
+          className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
         >
-          Sign in
-          <ArrowRight size={18} />
+          {submitting ? (
+            <>
+              <LoaderCircle
+                size={18}
+                className="animate-spin"
+              />
+              Signing in…
+            </>
+          ) : (
+            <>
+              Sign in
+              <ArrowRight size={18} />
+            </>
+          )}
         </button>
       </form>
 

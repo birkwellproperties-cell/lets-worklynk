@@ -5,6 +5,12 @@
   Routes,
 } from "react-router";
 
+import AppShell from "../shell/AppShell";
+import {
+  AuthGuard,
+  GuestGuard,
+} from "../../platform/auth";
+
 import AuthenticationLayout from "../../modules/authentication/AuthenticationLayout";
 import JoinPage from "../../modules/authentication/pages/JoinPage";
 import RegistrationPlaceholderPage from "../../modules/authentication/pages/RegistrationPlaceholderPage";
@@ -24,20 +30,29 @@ export default function AppRouter() {
           />
         </Route>
 
-        <Route element={<AuthenticationLayout />}>
-          <Route
-            path="sign-in"
-            element={<SignInPage />}
-          />
+        <Route element={<GuestGuard />}>
+          <Route element={<AuthenticationLayout />}>
+            <Route
+              path="sign-in"
+              element={<SignInPage />}
+            />
 
-          <Route
-            path="join"
-            element={<JoinPage />}
-          />
+            <Route
+              path="join"
+              element={<JoinPage />}
+            />
 
+            <Route
+              path="join/:accountType"
+              element={<RegistrationPlaceholderPage />}
+            />
+          </Route>
+        </Route>
+
+        <Route element={<AuthGuard />}>
           <Route
-            path="join/:accountType"
-            element={<RegistrationPlaceholderPage />}
+            path="app"
+            element={<AppShell />}
           />
         </Route>
 
