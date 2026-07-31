@@ -1,4 +1,8 @@
 ﻿import {
+  OrganizationProvider,
+} from "../../modules/organizations";
+
+import {
   AuthProvider,
 } from "../../platform/auth";
 
@@ -10,7 +14,9 @@ export default function AppProviders({
   return (
     <QueryProvider>
       <AuthProvider>
-        {children}
+        <OrganizationProvider>
+          {children}
+        </OrganizationProvider>
       </AuthProvider>
     </QueryProvider>
   );

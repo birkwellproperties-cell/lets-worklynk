@@ -9,3 +9,9 @@ export {
   createOrganizationService,
   organizationService,
 } from "./services";
+
+export {
+  OrganizationContext,
+  OrganizationProvider,
+  useOrganization,
+} from "./context";
