@@ -23,6 +23,8 @@ import {
 } from "../../modules/organizations/layouts";
 
 import {
+  OrganizationSettingsPage,
+  OrganizationBillingPage,
   OrganizationBrandingPage,
   OrganizationDepartmentsPage,
   OrganizationLocationsPage,
@@ -106,12 +108,12 @@ export default function AppRouter() {
 
               <Route
                 path="billing"
-                element={<OrganizationPlaceholderPage />}
+                element={<OrganizationBillingPage />}
               />
 
               <Route
                 path="settings"
-                element={<OrganizationPlaceholderPage />}
+                element={<OrganizationSettingsPage />}
               />
 
               <Route

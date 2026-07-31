@@ -1,4 +1,10 @@
-﻿export {
+export {
+  default as OrganizationSettingsPage,
+} from "./OrganizationSettingsPage";
+export {
+  default as OrganizationBillingPage,
+} from "./OrganizationBillingPage";
+export {
   default as OrganizationBrandingPage,
 } from "./OrganizationBrandingPage";
 
