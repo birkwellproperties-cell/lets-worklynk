@@ -1,4 +1,4 @@
-﻿import {
+import {
   BrowserRouter,
   Navigate,
   Route,
@@ -23,8 +23,10 @@ import {
 } from "../../modules/organizations/layouts";
 
 import {
+  OrganizationLocationsPage,
   OrganizationOverviewPage,
   OrganizationPlaceholderPage,
+  OrganizationProfilePage,
 } from "../../modules/organizations/pages";
 
 import PublicLayout from "../../public-site/layouts/PublicLayout";
@@ -82,12 +84,12 @@ export default function AppRouter() {
 
               <Route
                 path="profile"
-                element={<OrganizationPlaceholderPage />}
+                element={<OrganizationProfilePage />}
               />
 
               <Route
                 path="locations"
-                element={<OrganizationPlaceholderPage />}
+                element={<OrganizationLocationsPage />}
               />
 
               <Route
