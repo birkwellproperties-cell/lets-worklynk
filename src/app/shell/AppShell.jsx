@@ -1,8 +1,23 @@
 ﻿import {
+  Bell,
+  BriefcaseBusiness,
   Building2,
+  ChevronDown,
+  LayoutDashboard,
   LogOut,
-  ShieldCheck,
+  Menu,
+  Users,
+  X,
 } from "lucide-react";
+
+import {
+  useState,
+} from "react";
+
+import {
+  NavLink,
+  Outlet,
+} from "react-router";
 
 import {
   useAuth,
@@ -12,108 +27,182 @@ import {
   BrandLogo,
 } from "../../shared/branding";
 
+const navigationItems = [
+  {
+    label: "Dashboard",
+    to: "/app",
+    icon: LayoutDashboard,
+    end: true,
+  },
+  {
+    label: "Organization",
+    to: "/app/organization",
+    icon: Building2,
+  },
+  {
+    label: "Contractors",
+    to: "/app/contractors",
+    icon: Users,
+  },
+  {
+    label: "Jobs",
+    to: "/app/jobs",
+    icon: BriefcaseBusiness,
+  },
+];
+
+function getNavigationClassName({
+  isActive,
+}) {
+  return [
+    "flex items-center gap-3 rounded-xl px-4 py-3",
+    "text-sm font-semibold transition",
+    isActive
+      ? "bg-blue-600 text-white shadow-sm"
+      : "text-slate-600 hover:bg-slate-100 hover:text-slate-950",
+  ].join(" ");
+}
+
 export default function AppShell() {
   const {
     profile,
     organization,
-    roles,
-    permissions,
-    isPlatformAdministrator,
+    memberships,
     signOut,
   } = useAuth();
+
+  const [
+    mobileNavigationOpen,
+    setMobileNavigationOpen,
+  ] = useState(false);
 
   async function handleSignOut() {
     await signOut();
   }
 
+  function closeMobileNavigation() {
+    setMobileNavigationOpen(false);
+  }
+
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex min-h-20 max-w-7xl items-center justify-between gap-5 px-6">
-          <BrandLogo />
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
+        <div className="flex min-h-20 items-center justify-between gap-5 px-5 sm:px-6">
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileNavigationOpen(
+                  (current) => !current,
+                );
+              }}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-700 lg:hidden"
+              aria-label="Toggle navigation"
+            >
+              {mobileNavigationOpen
+                ? <X size={20} />
+                : <Menu size={20} />}
+            </button>
 
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-          >
-            <LogOut size={17} />
-            Sign out
-          </button>
+            <BrandLogo />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+              aria-label="Notifications"
+            >
+              <Bell size={19} />
+            </button>
+
+            <div className="hidden items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 sm:flex">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700">
+                {(profile?.display_name ||
+                  profile?.email ||
+                  "U")
+                  .slice(0, 1)
+                  .toUpperCase()}
+              </span>
+
+              <span className="min-w-0">
+                <span className="block max-w-48 truncate text-sm font-bold text-slate-950">
+                  {profile?.display_name ||
+                    profile?.email}
+                </span>
+
+                <span className="block max-w-48 truncate text-xs text-slate-500">
+                  {organization?.displayName}
+                </span>
+              </span>
+
+              {memberships.length > 1 && (
+                <ChevronDown
+                  size={17}
+                  className="text-slate-400"
+                />
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+            >
+              <LogOut size={17} />
+              <span className="hidden sm:inline">
+                Sign out
+              </span>
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-12">
-        <p className="text-sm font-bold uppercase tracking-[0.16em] text-blue-600">
-          Identity platform
-        </p>
+      <div className="flex">
+        <aside
+          className={[
+            "fixed inset-y-20 left-0 z-30 w-72 border-r border-slate-200",
+            "bg-white p-5 transition-transform lg:sticky lg:top-20 lg:h-[calc(100vh-5rem)]",
+            mobileNavigationOpen
+              ? "translate-x-0"
+              : "-translate-x-full lg:translate-x-0",
+          ].join(" ")}
+        >
+          <nav className="space-y-2">
+            {navigationItems.map((item) => {
+              const Icon = item.icon;
 
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-950">
-          Welcome to Let&apos;s WorkLynk
-        </h1>
+              return (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  onClick={closeMobileNavigation}
+                  className={getNavigationClassName}
+                >
+                  <Icon size={19} />
+                  {item.label}
+                </NavLink>
+              );
+            })}
+          </nav>
+        </aside>
 
-        <p className="mt-4 max-w-2xl leading-7 text-slate-600">
-          Your authenticated identity, organization membership,
-          roles, and permissions were resolved successfully.
-        </p>
+        {mobileNavigationOpen && (
+          <button
+            type="button"
+            aria-label="Close navigation overlay"
+            onClick={closeMobileNavigation}
+            className="fixed inset-0 top-20 z-20 bg-slate-950/30 lg:hidden"
+          />
+        )}
 
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <ShieldCheck
-              size={24}
-              className="text-blue-600"
-            />
-
-            <h2 className="mt-4 font-bold text-slate-950">
-              Signed-in user
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {profile?.display_name ||
-                profile?.email ||
-                "Authenticated user"}
-            </p>
-          </article>
-
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <Building2
-              size={24}
-              className="text-blue-600"
-            />
-
-            <h2 className="mt-4 font-bold text-slate-950">
-              Active organization
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {organization?.displayName ||
-                organization?.legalName ||
-                (
-                  isPlatformAdministrator
-                    ? "Platform administration"
-                    : "No organization"
-                )}
-            </p>
-          </article>
-
-          <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <ShieldCheck
-              size={24}
-              className="text-blue-600"
-            />
-
-            <h2 className="mt-4 font-bold text-slate-950">
-              Authorization
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {isPlatformAdministrator
-                ? "Platform administrator"
-                : `${roles.length} role(s), ${permissions.length} permission(s)`}
-            </p>
-          </article>
-        </div>
-      </main>
+        <main className="min-w-0 flex-1 px-5 py-8 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

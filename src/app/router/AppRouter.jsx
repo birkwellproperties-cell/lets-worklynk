@@ -5,7 +5,9 @@
   Routes,
 } from "react-router";
 
+import AppDashboardPage from "../shell/AppDashboardPage";
 import AppShell from "../shell/AppShell";
+
 import {
   AuthGuard,
   GuestGuard,
@@ -15,6 +17,16 @@ import AuthenticationLayout from "../../modules/authentication/AuthenticationLay
 import JoinPage from "../../modules/authentication/pages/JoinPage";
 import RegistrationPlaceholderPage from "../../modules/authentication/pages/RegistrationPlaceholderPage";
 import SignInPage from "../../modules/authentication/pages/SignInPage";
+
+import {
+  OrganizationLayout,
+} from "../../modules/organizations/layouts";
+
+import {
+  OrganizationOverviewPage,
+  OrganizationPlaceholderPage,
+} from "../../modules/organizations/pages";
+
 import PublicLayout from "../../public-site/layouts/PublicLayout";
 import LandingPage from "../../public-site/pages/LandingPage";
 import NotFoundPage from "../../public-site/pages/NotFoundPage";
@@ -53,7 +65,67 @@ export default function AppRouter() {
           <Route
             path="app"
             element={<AppShell />}
-          />
+          >
+            <Route
+              index
+              element={<AppDashboardPage />}
+            />
+
+            <Route
+              path="organization"
+              element={<OrganizationLayout />}
+            >
+              <Route
+                index
+                element={<OrganizationOverviewPage />}
+              />
+
+              <Route
+                path="profile"
+                element={<OrganizationPlaceholderPage />}
+              />
+
+              <Route
+                path="locations"
+                element={<OrganizationPlaceholderPage />}
+              />
+
+              <Route
+                path="departments"
+                element={<OrganizationPlaceholderPage />}
+              />
+
+              <Route
+                path="branding"
+                element={<OrganizationPlaceholderPage />}
+              />
+
+              <Route
+                path="billing"
+                element={<OrganizationPlaceholderPage />}
+              />
+
+              <Route
+                path="settings"
+                element={<OrganizationPlaceholderPage />}
+              />
+
+              <Route
+                path="members"
+                element={<OrganizationPlaceholderPage />}
+              />
+            </Route>
+
+            <Route
+              path="contractors"
+              element={<OrganizationPlaceholderPage />}
+            />
+
+            <Route
+              path="jobs"
+              element={<OrganizationPlaceholderPage />}
+            />
+          </Route>
         </Route>
 
         <Route
