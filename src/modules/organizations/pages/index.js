@@ -1,4 +1,12 @@
 ﻿export {
+  default as OrganizationBrandingPage,
+} from "./OrganizationBrandingPage";
+
+export {
+  default as OrganizationDepartmentsPage,
+} from "./OrganizationDepartmentsPage";
+
+export {
   default as OrganizationLocationsPage,
 } from "./OrganizationLocationsPage";
 

@@ -23,6 +23,8 @@ import {
 } from "../../modules/organizations/layouts";
 
 import {
+  OrganizationBrandingPage,
+  OrganizationDepartmentsPage,
   OrganizationLocationsPage,
   OrganizationOverviewPage,
   OrganizationPlaceholderPage,
@@ -94,12 +96,12 @@ export default function AppRouter() {
 
               <Route
                 path="departments"
-                element={<OrganizationPlaceholderPage />}
+                element={<OrganizationDepartmentsPage />}
               />
 
               <Route
                 path="branding"
-                element={<OrganizationPlaceholderPage />}
+                element={<OrganizationBrandingPage />}
               />
 
               <Route
