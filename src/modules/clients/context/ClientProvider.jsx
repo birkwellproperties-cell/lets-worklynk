@@ -529,6 +529,42 @@ export default function ClientProvider({
       ],
     );
 
+  const getClientContacts =
+    useCallback(
+      async (
+        clientOrganizationId,
+        options,
+      ) =>
+        clientOrganizationService
+          .getContacts(
+            clientOrganizationId,
+            options,
+          ),
+      [],
+    );
+
+  const setPrimaryContact =
+    useCallback(
+      async (
+        clientOrganizationId,
+        contactId,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .setPrimaryContact(
+                clientOrganizationId,
+                contactId,
+              ),
+          {
+            refreshDirectory:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
   const archiveContact =
     useCallback(
       async (
@@ -651,6 +687,8 @@ export default function ClientProvider({
         changeRelationshipStatus,
         createContact,
         updateContact,
+        getClientContacts,
+        setPrimaryContact,
         archiveContact,
         restoreContact,
         saveOnboarding,
@@ -663,11 +701,13 @@ export default function ClientProvider({
         clearError,
         createClient,
         createContact,
+        getClientContacts,
         loadClientWorkspace,
         refreshClients,
         restoreContact,
         saveOnboarding,
         selectClient,
+        setPrimaryContact,
         setFilters,
         state,
         updateClientOrganization,

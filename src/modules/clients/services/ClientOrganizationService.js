@@ -1386,6 +1386,74 @@ export class ClientOrganizationService {
     );
   }
 
+  async setPrimaryContact(
+    clientOrganizationId,
+    contactId,
+  ) {
+    requireIdentifier(
+      clientOrganizationId,
+      "Client organization ID",
+    );
+
+    requireIdentifier(
+      contactId,
+      "Client contact ID",
+    );
+
+    const contacts =
+      await this.contactsRepository
+        .getContacts(
+          clientOrganizationId,
+          {
+            includeArchived: false,
+          },
+        );
+
+    const selectedContact =
+      contacts.find(
+        (contact) =>
+          contact.id ===
+          contactId,
+      );
+
+    if (!selectedContact) {
+      throw new Error(
+        "Client contact was not found.",
+      );
+    }
+
+    await Promise.all(
+      contacts
+        .filter(
+          (contact) =>
+            contact.id !==
+              contactId &&
+            contact.is_primary,
+        )
+        .map(
+          (contact) =>
+            this.contactsRepository
+              .updateContact(
+                contact.id,
+                {
+                  is_primary:
+                    false,
+                },
+              ),
+        ),
+    );
+
+    return mapClientContact(
+      await this.contactsRepository
+        .updateContact(
+          contactId,
+          {
+            is_primary: true,
+            is_active: true,
+          },
+        ),
+    );
+  }
   async archiveContact(
     contactId,
     actorId,
