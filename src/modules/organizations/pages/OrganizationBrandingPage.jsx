@@ -1,4 +1,4 @@
-﻿import {
+import {
   AlertCircle,
   CheckCircle2,
   Image,
@@ -17,6 +17,7 @@ import {
 
 import {
   useForm,
+  useWatch,
 } from "react-hook-form";
 
 import {
@@ -122,7 +123,7 @@ export default function OrganizationBrandingPage() {
     register,
     handleSubmit,
     reset,
-    watch,
+    control,
     setValue,
     formState: {
       errors,
@@ -142,7 +143,9 @@ export default function OrganizationBrandingPage() {
   ]);
 
   const watchedValues =
-    watch();
+    useWatch({
+      control,
+    });
 
   async function onSubmit(values) {
     clearError();
@@ -406,7 +409,7 @@ export default function OrganizationBrandingPage() {
                 name="primaryColor"
                 disabled={!canManage}
                 register={register}
-                watch={watch}
+                control={control}
                 setValue={setValue}
                 error={
                   errors.primaryColor
@@ -419,7 +422,7 @@ export default function OrganizationBrandingPage() {
                 name="secondaryColor"
                 disabled={!canManage}
                 register={register}
-                watch={watch}
+                control={control}
                 setValue={setValue}
                 error={
                   errors.secondaryColor
@@ -432,7 +435,7 @@ export default function OrganizationBrandingPage() {
                 name="accentColor"
                 disabled={!canManage}
                 register={register}
-                watch={watch}
+                control={control}
                 setValue={setValue}
                 error={
                   errors.accentColor
@@ -610,12 +613,15 @@ function ColorField({
   name,
   disabled,
   register,
-  watch,
+  control,
   setValue,
   error,
 }) {
   const value =
-    watch(name);
+    useWatch({
+      control,
+      name,
+    });
 
   return (
     <Field

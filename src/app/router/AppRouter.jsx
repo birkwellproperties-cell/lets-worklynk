@@ -28,6 +28,7 @@ import {
   OrganizationBrandingPage,
   OrganizationDepartmentsPage,
   OrganizationLocationsPage,
+  OrganizationMembersPage,
   OrganizationOverviewPage,
   OrganizationPlaceholderPage,
   OrganizationProfilePage,
@@ -118,7 +119,7 @@ export default function AppRouter() {
 
               <Route
                 path="members"
-                element={<OrganizationPlaceholderPage />}
+                element={<OrganizationMembersPage />}
               />
             </Route>
 

@@ -1,4 +1,4 @@
-﻿import {
+import {
   AlertCircle,
   Bell,
   BriefcaseBusiness,
@@ -6,7 +6,6 @@
   Clock3,
   LoaderCircle,
   Save,
-  Settings2,
   ShieldCheck,
 } from "lucide-react";
 

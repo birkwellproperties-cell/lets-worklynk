@@ -11,6 +11,7 @@ import {
 } from "../../../platform/auth";
 
 import {
+  organizationMembersService,
   organizationService,
 } from "../services";
 
@@ -34,6 +35,14 @@ const INITIAL_STATE = {
   settings: [],
   branding: null,
   billingProfile: null,
+
+  members: [],
+  memberRoles: [],
+  memberPermissions: [],
+  selectedMemberId: null,
+  membersLoading: false,
+  membersSaving: false,
+  memberPermissionsLoading: false,
 };
 
 function normalizeError(error) {
@@ -53,6 +62,7 @@ export default function OrganizationProvider({
     organizationId,
     workspaceReady,
     user,
+    isPlatformAdministrator,
     refreshIdentity,
   } = useAuth();
 
@@ -124,6 +134,32 @@ export default function OrganizationProvider({
             return null;
           }
 
+          const [
+            members,
+            memberRoles,
+            memberPermissions,
+          ] = await Promise.all([
+            organizationMembersService
+              .getMembers(
+                organizationId,
+              ),
+
+            organizationMembersService
+              .getRoles(
+                organizationId,
+              ),
+
+            organizationMembersService
+              .getPermissions(),
+          ]);
+
+          if (
+            sequence !==
+            requestSequence.current
+          ) {
+            return null;
+          }
+
           setState({
             initialized: true,
             loading: false,
@@ -165,11 +201,27 @@ export default function OrganizationProvider({
 
             billingProfile:
               billingProfile ?? null,
+
+            members,
+            memberRoles,
+            memberPermissions,
+
+            selectedMemberId:
+              members[0]
+                ?.membershipId ??
+              null,
+
+            membersLoading: false,
+            membersSaving: false,
+            memberPermissionsLoading: false,
           });
 
           return {
             ...workspace,
             billingProfile,
+            members,
+            memberRoles,
+            memberPermissions,
           };
         } catch (error) {
           if (
@@ -737,6 +789,288 @@ export default function OrganizationProvider({
       ],
     );
 
+  const refreshMembers =
+    useCallback(
+      async ({
+        silent = false,
+      } = {}) => {
+        if (
+          !workspaceReady ||
+          !organizationId
+        ) {
+          setState(
+            (current) => ({
+              ...current,
+              members: [],
+              memberRoles: [],
+              memberPermissions: [],
+              selectedMemberId: null,
+              membersLoading: false,
+              memberPermissionsLoading: false,
+            }),
+          );
+
+          return {
+            members: [],
+            roles: [],
+          };
+        }
+
+        if (!silent) {
+          setState(
+            (current) => ({
+              ...current,
+              membersLoading: true,
+              error: null,
+            }),
+          );
+        }
+
+        try {
+          const [
+            members,
+            roles,
+            permissions,
+          ] = await Promise.all([
+            organizationMembersService
+              .getMembers(
+                organizationId,
+              ),
+
+            organizationMembersService
+              .getRoles(
+                organizationId,
+              ),
+
+            organizationMembersService
+              .getPermissions(),
+          ]);
+
+          setState(
+            (current) => {
+              const selectedExists =
+                members.some(
+                  (member) =>
+                    member.membershipId ===
+                    current.selectedMemberId,
+                );
+
+              return {
+                ...current,
+                members,
+                memberRoles: roles,
+                memberPermissions:
+                  permissions,
+
+                selectedMemberId:
+                  selectedExists
+                    ? current.selectedMemberId
+                    : members[0]
+                        ?.membershipId ??
+                      null,
+
+                membersLoading: false,
+              };
+            },
+          );
+
+          return {
+            members,
+            roles,
+            permissions,
+          };
+        } catch (error) {
+          const normalizedError =
+            normalizeError(error);
+
+          setState(
+            (current) => ({
+              ...current,
+              membersLoading: false,
+              error: normalizedError,
+            }),
+          );
+
+          throw normalizedError;
+        }
+      },
+      [
+        organizationId,
+        workspaceReady,
+      ],
+    );
+
+  const selectMember =
+    useCallback(
+      (
+        membershipId,
+      ) => {
+        setState(
+          (current) => ({
+            ...current,
+
+            selectedMemberId:
+              membershipId,
+          }),
+        );
+      },
+      [],
+    );
+
+  const runMemberSave =
+    useCallback(
+      async (
+        operation,
+      ) => {
+        setState(
+          (current) => ({
+            ...current,
+            membersSaving: true,
+            error: null,
+          }),
+        );
+
+        try {
+          const result =
+            await operation();
+
+          await refreshMembers({
+            silent: true,
+          });
+
+          setState(
+            (current) => ({
+              ...current,
+              membersSaving: false,
+            }),
+          );
+
+          return result;
+        } catch (error) {
+          const normalizedError =
+            normalizeError(error);
+
+          setState(
+            (current) => ({
+              ...current,
+              membersSaving: false,
+              error: normalizedError,
+            }),
+          );
+
+          throw normalizedError;
+        }
+      },
+      [
+        refreshMembers,
+      ],
+    );
+
+  const updateMemberStatus =
+    useCallback(
+      async (
+        membershipId,
+        status,
+        {
+          title = null,
+        } = {},
+      ) =>
+        runMemberSave(
+          async () => {
+            const member =
+              state.members.find(
+                (candidate) =>
+                  candidate.membershipId ===
+                  membershipId,
+              );
+
+            return organizationMembersService
+              .updateStatus(
+                membershipId,
+                status,
+                {
+                  title,
+
+                  currentUserId:
+                    user?.id ?? null,
+
+                  memberUserId:
+                    member?.userId ??
+                    null,
+
+                  isPlatformAdministrator,
+                },
+              );
+          },
+        ),
+      [
+        isPlatformAdministrator,
+        runMemberSave,
+        state.members,
+        user?.id,
+      ],
+    );
+
+  const replaceMemberRoles =
+    useCallback(
+      async (
+        membershipId,
+        roleIds,
+      ) =>
+        runMemberSave(
+          () =>
+            organizationMembersService
+              .replaceRoles(
+                membershipId,
+                roleIds,
+              ),
+        ),
+      [
+        runMemberSave,
+      ],
+    );
+
+  const setMemberPermissionOverride =
+    useCallback(
+      async (
+        membershipId,
+        permissionCode,
+        effect,
+        options,
+      ) =>
+        runMemberSave(
+          () =>
+            organizationMembersService
+              .setPermissionOverride(
+                membershipId,
+                permissionCode,
+                effect,
+                options,
+              ),
+        ),
+      [
+        runMemberSave,
+      ],
+    );
+
+  const removeMemberPermissionOverride =
+    useCallback(
+      async (
+        membershipId,
+        permissionCode,
+      ) =>
+        runMemberSave(
+          () =>
+            organizationMembersService
+              .removePermissionOverride(
+                membershipId,
+                permissionCode,
+              ),
+        ),
+      [
+        runMemberSave,
+      ],
+    );
   const clearError =
     useCallback(
       () => {
@@ -799,6 +1133,20 @@ export default function OrganizationProvider({
         saveBranding,
         saveBillingProfile,
 
+        selectedMember:
+          state.members.find(
+            (member) =>
+              member.membershipId ===
+              state.selectedMemberId,
+          ) ?? null,
+
+        refreshMembers,
+        selectMember,
+        updateMemberStatus,
+        replaceMemberRoles,
+        setMemberPermissionOverride,
+        removeMemberPermissionOverride,
+
         clearError,
       }),
       [
@@ -819,6 +1167,12 @@ export default function OrganizationProvider({
         deleteSetting,
         saveBranding,
         saveBillingProfile,
+        refreshMembers,
+        selectMember,
+        updateMemberStatus,
+        replaceMemberRoles,
+        setMemberPermissionOverride,
+        removeMemberPermissionOverride,
         clearError,
       ],
     );

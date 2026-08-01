@@ -1,4 +1,7 @@
 export {
+  default as OrganizationMembersPage,
+} from "./OrganizationMembersPage";
+export {
   default as OrganizationSettingsPage,
 } from "./OrganizationSettingsPage";
 export {
