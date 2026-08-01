@@ -19,6 +19,9 @@ import RegistrationPlaceholderPage from "../../modules/authentication/pages/Regi
 import SignInPage from "../../modules/authentication/pages/SignInPage";
 
 import {
+  ClientDirectoryPage,
+} from "../../modules/clients";
+import {
   OrganizationLayout,
 } from "../../modules/organizations/layouts";
 
@@ -122,6 +125,11 @@ export default function AppRouter() {
                 element={<OrganizationMembersPage />}
               />
             </Route>
+
+            <Route
+              path="clients"
+              element={<ClientDirectoryPage />}
+            />
 
             <Route
               path="contractors"

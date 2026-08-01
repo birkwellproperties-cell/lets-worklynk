@@ -1,4 +1,8 @@
-﻿import {
+import {
+  ClientProvider,
+} from "../../modules/clients";
+
+import {
   OrganizationProvider,
 } from "../../modules/organizations";
 
@@ -15,8 +19,10 @@ export default function AppProviders({
     <QueryProvider>
       <AuthProvider>
         <OrganizationProvider>
+        <ClientProvider>
           {children}
-        </OrganizationProvider>
+        </ClientProvider>
+      </OrganizationProvider>
       </AuthProvider>
     </QueryProvider>
   );

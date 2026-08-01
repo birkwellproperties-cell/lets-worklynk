@@ -1,4 +1,4 @@
-﻿import {
+import {
   Bell,
   BriefcaseBusiness,
   Building2,
@@ -37,6 +37,11 @@ const navigationItems = [
   {
     label: "Organization",
     to: "/app/organization",
+    icon: Building2,
+  },
+  {
+    label: "Clients",
+    to: "/app/clients",
     icon: Building2,
   },
   {
