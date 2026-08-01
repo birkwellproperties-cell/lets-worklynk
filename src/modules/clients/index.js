@@ -28,5 +28,12 @@ export {
   useClient,
 } from "./context";
 export {
+  ClientContactsPage,
   ClientDirectoryPage,
+  ClientOnboardingPage,
+  ClientOverviewPage,
+  ClientProfilePage,
 } from "./pages";
+export {
+  ClientWorkspaceLayout,
+} from "./layouts";

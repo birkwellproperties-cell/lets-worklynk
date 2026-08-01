@@ -25,6 +25,10 @@ import {
 } from "react";
 
 import {
+  Link,
+} from "react-router";
+
+import {
   useAuth,
 } from "../../../platform/auth";
 
@@ -546,7 +550,7 @@ export default function ClientDirectoryPage() {
                     event.target.value,
                 });
               }}
-              placeholder="Search clients by name, email, industry, or reference…"
+              placeholder="Search clients by name, email, industry, or reference..."
               className="w-full border-0 bg-transparent py-3 outline-none"
             />
           </label>
@@ -808,13 +812,12 @@ function ClientListItem({
         <span className="mt-2 block text-xs font-semibold text-slate-500">
           Client #
           {organization
-            ?.organizationNumber ??
-            "—"}
-          {" · "}
+            ?.organizationNumber ?? "-"}
+          {" - "}
           Relationship #
           {relationship
-            ?.relationshipNumber ??
-            "—"}
+              ?.relationshipNumber ??
+              "-"}
         </span>
       </span>
     </button>
@@ -940,7 +943,7 @@ function ClientDetailsPanel({
             #
             {relationship
               ?.relationshipNumber ??
-              "—"}
+              "-"}
           </p>
         </div>
       </div>
@@ -1127,8 +1130,17 @@ function ClientDetailsPanel({
         </div>
       </div>
 
+      <div className="mt-8 border-t border-slate-200 pt-7">
+        <Link
+          to={`/app/clients/${relationship.id}`}
+          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-bold text-white hover:bg-blue-700"
+        >
+          Open client workspace
+        </Link>
+      </div>
+
       {canUpdate && (
-        <div className="mt-8 flex flex-wrap gap-3 border-t border-slate-200 pt-7">
+        <div className="mt-6 flex flex-wrap gap-3 border-t border-slate-200 pt-7">
           {relationship.status ===
             "prospect" && (
             <ActionButton

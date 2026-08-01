@@ -1,4 +1,4 @@
-﻿import {
+import {
   useCallback,
   useMemo,
   useRef,
@@ -427,6 +427,24 @@ export default function ClientProvider({
       ],
     );
 
+  const updateClientProfileWorkspace =
+    useCallback(
+      async (
+        clientOrganizationId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .updateClientProfileWorkspace(
+                clientOrganizationId,
+                payload,
+              ),
+        ),
+      [
+        runSave,
+      ],
+    );
   const updateRelationship =
     useCallback(
       async (
@@ -628,6 +646,7 @@ export default function ClientProvider({
         selectClient,
         createClient,
         updateClientOrganization,
+        updateClientProfileWorkspace,
         updateRelationship,
         changeRelationshipStatus,
         createContact,
@@ -652,6 +671,7 @@ export default function ClientProvider({
         setFilters,
         state,
         updateClientOrganization,
+        updateClientProfileWorkspace,
         updateContact,
         updateRelationship,
       ],

@@ -1,4 +1,4 @@
-﻿import {
+import {
   clientContactsRepository,
   clientOnboardingRepository,
   clientOrganizationsRepository,
@@ -887,6 +887,219 @@ export class ClientOrganizationService {
     );
   }
 
+  async updateOrganizationProfile(
+    clientOrganizationId,
+    payload,
+  ) {
+    requireIdentifier(
+      clientOrganizationId,
+      "Client organization ID",
+    );
+
+    return mapOrganizationProfile(
+      await this
+        .organizationsRepository
+        .upsertOrganizationProfile(
+          clientOrganizationId,
+          {
+            profile_visibility:
+              payload.profileVisibility ??
+              "private",
+
+            short_description:
+              trimOrNull(
+                payload.shortDescription,
+              ),
+
+            full_description:
+              trimOrNull(
+                payload.fullDescription,
+              ),
+
+            industry_code:
+              trimOrNull(
+                payload.industryCode,
+              ),
+
+            industry_name:
+              trimOrNull(
+                payload.industryName,
+              ),
+
+            employee_size_range:
+              trimOrNull(
+                payload.employeeSizeRange,
+              ),
+
+            year_established:
+              normalizeInteger(
+                payload.yearEstablished,
+                {
+                  label:
+                    "Year established",
+                  minimum: 1800,
+                  maximum: 2200,
+                },
+              ),
+
+            marketplace_headline:
+              trimOrNull(
+                payload.marketplaceHeadline,
+              ),
+
+            primary_contact_name:
+              trimOrNull(
+                payload.primaryContactName,
+              ),
+
+            primary_contact_email:
+              normalizeEmail(
+                payload.primaryContactEmail,
+              ),
+
+            primary_contact_phone:
+              normalizePhone(
+                payload.primaryContactPhone,
+              ),
+
+            support_email:
+              normalizeEmail(
+                payload.supportEmail,
+              ),
+
+            support_phone:
+              normalizePhone(
+                payload.supportPhone,
+              ),
+
+            timezone:
+              trimOrNull(
+                payload.timezone,
+              ) ??
+              "America/Chicago",
+
+            locale:
+              trimOrNull(
+                payload.locale,
+              ) ??
+              "en-US",
+
+            currency_code:
+              (
+                trimOrNull(
+                  payload.currencyCode,
+                ) ??
+                "USD"
+              ).toUpperCase(),
+          },
+        ),
+    );
+  }
+
+  async updateClientProfile(
+    clientOrganizationId,
+    payload,
+  ) {
+    requireIdentifier(
+      clientOrganizationId,
+      "Client organization ID",
+    );
+
+    return mapClientProfile(
+      await this
+        .organizationsRepository
+        .upsertClientProfile(
+          clientOrganizationId,
+          {
+            procurement_email:
+              normalizeEmail(
+                payload.procurementEmail,
+              ),
+
+            accounts_payable_email:
+              normalizeEmail(
+                payload.accountsPayableEmail,
+              ),
+
+            default_payment_terms_days:
+              normalizeInteger(
+                payload.defaultPaymentTermsDays,
+                {
+                  label:
+                    "Payment terms",
+                  minimum: 0,
+                  maximum: 365,
+                  defaultValue: 30,
+                },
+              ),
+
+            purchase_order_required:
+              normalizeBoolean(
+                payload.purchaseOrderRequired,
+              ),
+
+            worker_approval_required:
+              normalizeBoolean(
+                payload.workerApprovalRequired,
+                true,
+              ),
+
+            timesheet_approval_required:
+              normalizeBoolean(
+                payload.timesheetApprovalRequired,
+                true,
+              ),
+
+            allows_direct_contractor_contact:
+              normalizeBoolean(
+                payload
+                  .allowsDirectContractorContact,
+                true,
+              ),
+          },
+        ),
+    );
+  }
+
+  async updateClientProfileWorkspace(
+    clientOrganizationId,
+    payload,
+  ) {
+    requireIdentifier(
+      clientOrganizationId,
+      "Client organization ID",
+    );
+
+    const [
+      organization,
+      organizationProfile,
+      clientProfile,
+    ] = await Promise.all([
+      this.updateClientOrganization(
+        clientOrganizationId,
+        payload.organization ??
+        {},
+      ),
+
+      this.updateOrganizationProfile(
+        clientOrganizationId,
+        payload.organizationProfile ??
+        {},
+      ),
+
+      this.updateClientProfile(
+        clientOrganizationId,
+        payload.clientProfile ??
+        {},
+      ),
+    ]);
+
+    return {
+      organization,
+      organizationProfile,
+      clientProfile,
+    };
+  }
   async updateRelationship(
     relationshipId,
     payload,

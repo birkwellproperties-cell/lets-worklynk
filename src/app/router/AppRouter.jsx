@@ -19,7 +19,12 @@ import RegistrationPlaceholderPage from "../../modules/authentication/pages/Regi
 import SignInPage from "../../modules/authentication/pages/SignInPage";
 
 import {
+  ClientContactsPage,
   ClientDirectoryPage,
+  ClientOnboardingPage,
+  ClientOverviewPage,
+  ClientProfilePage,
+  ClientWorkspaceLayout,
 } from "../../modules/clients";
 import {
   OrganizationLayout,
@@ -128,8 +133,37 @@ export default function AppRouter() {
 
             <Route
               path="clients"
-              element={<ClientDirectoryPage />}
-            />
+            >
+              <Route
+                index
+                element={<ClientDirectoryPage />}
+              />
+
+              <Route
+                path=":relationshipId"
+                element={<ClientWorkspaceLayout />}
+              >
+                <Route
+                  index
+                  element={<ClientOverviewPage />}
+                />
+
+                <Route
+                  path="profile"
+                  element={<ClientProfilePage />}
+                />
+
+                <Route
+                  path="contacts"
+                  element={<ClientContactsPage />}
+                />
+
+                <Route
+                  path="onboarding"
+                  element={<ClientOnboardingPage />}
+                />
+              </Route>
+            </Route>
 
             <Route
               path="contractors"

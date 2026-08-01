@@ -252,7 +252,7 @@ export default function OrganizationBrandingPage() {
                 size={18}
                 className="animate-spin"
               />
-              Saving…
+              Savingâ€¦
             </>
           ) : (
             <>
@@ -476,7 +476,7 @@ export default function OrganizationBrandingPage() {
                 size={18}
                 className="animate-spin"
               />
-              Saving…
+              Savingâ€¦
             </>
           ) : (
             <>

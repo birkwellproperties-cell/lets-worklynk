@@ -1,4 +1,4 @@
-﻿import {
+import {
   Building2,
   CheckCircle2,
   CreditCard,
@@ -13,6 +13,7 @@
 
 import {
   Link,
+  useNavigate,
 } from "react-router";
 
 import {
@@ -32,18 +33,46 @@ const quickActions = [
     icon: Building2,
   },
   {
-    title: "Add locations",
+    title: "Manage locations",
     description:
-      "Create offices, facilities, worksites, or billing locations.",
+      "Create and maintain offices, facilities, worksites, and billing locations.",
     to: "/app/organization/locations",
     icon: MapPinned,
   },
   {
+    title: "Manage departments",
+    description:
+      "Configure departments, teams, reporting structures, and operating units.",
+    to: "/app/organization/departments",
+    icon: Network,
+  },
+  {
     title: "Configure branding",
     description:
-      "Set organization colors, logos, display name, and tagline.",
+      "Set organization colors, logos, display name, and marketplace tagline.",
     to: "/app/organization/branding",
     icon: Palette,
+  },
+  {
+    title: "Configure billing",
+    description:
+      "Maintain billing identity, invoice contacts, payment terms, and tax details.",
+    to: "/app/organization/billing",
+    icon: CreditCard,
+  },
+  {
+    title: "Manage members",
+    description:
+      "Manage organization users, roles, membership status, and permission overrides.",
+    to: "/app/organization/members",
+    icon: Users,
+  },
+  {
+    title: "Organization settings",
+    description:
+      "Configure organization-wide preferences, defaults, and platform behavior.",
+    to: "/app/organization/settings",
+    icon: Settings2,
   },
 ];
 
@@ -77,6 +106,9 @@ function SummaryCard({
 }
 
 export default function OrganizationOverviewPage() {
+  const navigate =
+    useNavigate();
+
   const {
     roles,
     permissions,
@@ -237,7 +269,13 @@ export default function OrganizationOverviewPage() {
 
           <Link
             to="/app/organization/profile"
-            className="mt-7 inline-flex items-center rounded-xl bg-white px-5 py-3 font-bold text-slate-950 transition hover:bg-slate-100"
+            aria-label="Edit organization profile"
+            className="mt-7 inline-flex min-h-12 items-center justify-center rounded-xl border border-white bg-white px-5 py-3 font-bold transition hover:bg-slate-100"
+            style={{
+              color: "#0f172a",
+              WebkitTextFillColor: "#0f172a",
+              opacity: 1,
+            }}
           >
             Edit organization profile
           </Link>
@@ -255,15 +293,18 @@ export default function OrganizationOverviewPage() {
           </h2>
         </div>
 
-        <div className="mt-6 grid gap-5 md:grid-cols-3">
+        <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {quickActions.map((action) => {
             const Icon = action.icon;
 
             return (
-              <Link
+              <button
+                type="button"
                 key={action.to}
-                to={action.to}
-                className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-blue-300 hover:shadow-md"
+                onClick={() => {
+                  navigate(action.to);
+                }}
+                className="group w-full cursor-pointer rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-blue-100"
               >
                 <Icon
                   size={23}
@@ -277,7 +318,7 @@ export default function OrganizationOverviewPage() {
                 <p className="mt-2 leading-7 text-slate-600">
                   {action.description}
                 </p>
-              </Link>
+              </button>
             );
           })}
         </div>
