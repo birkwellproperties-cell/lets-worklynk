@@ -1,4 +1,4 @@
-﻿export {
+export {
   ClientContactsRepository,
   clientContactsRepository,
   createClientContactsRepository,
@@ -15,3 +15,9 @@ export {
   clientOrganizationsRepository,
   createClientOrganizationsRepository,
 } from "./clientOrganizationsRepository";
+
+export {
+  ClientDocumentsRepository,
+  clientDocumentsRepository,
+  createClientDocumentsRepository,
+} from "./clientDocumentsRepository";

@@ -21,6 +21,7 @@ import SignInPage from "../../modules/authentication/pages/SignInPage";
 import {
   ClientContactsPage,
   ClientDirectoryPage,
+  ClientDocumentsPage,
   ClientOnboardingPage,
   ClientOverviewPage,
   ClientProfilePage,
@@ -161,6 +162,11 @@ export default function AppRouter() {
                 <Route
                   path="onboarding"
                   element={<ClientOnboardingPage />}
+                />
+
+                <Route
+                  path="documents"
+                  element={<ClientDocumentsPage />}
                 />
               </Route>
             </Route>

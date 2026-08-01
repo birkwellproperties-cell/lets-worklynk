@@ -12,3 +12,9 @@ export {
   getClientName,
   getClientStatusClasses,
 } from "./clientPresentation";
+export {
+  mapClientDocument,
+  mapClientDocumentActivity,
+  mapClientDocumentNote,
+  mapClientDocumentVersion,
+} from "./clientDocumentMappers";

@@ -1,0 +1,3044 @@
+﻿=== CLIENT PROVIDER ===
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  useAuth,
+} from "../../../platform/auth";
+
+import {
+  clientDocumentsService,
+  clientOrganizationService,
+} from "../services";
+
+import {
+  ClientContext,
+} from "./ClientContext";
+
+const INITIAL_STATE = {
+  clients: [],
+  selectedRelationshipId: null,
+  selectedClientWorkspace: null,
+
+  filters: {
+    search: "",
+    status: "all",
+  },
+
+  loading: false,
+  workspaceLoading: false,
+  saving: false,
+  error: null,
+};
+
+function normalizeError(error) {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error(
+    error?.message ||
+    "An unexpected client-management error occurred.",
+  );
+}
+
+export default function ClientProvider({
+  children,
+}) {
+  const {
+    organizationId,
+    workspaceReady,
+    user,
+  } = useAuth();
+
+  const [
+    state,
+    setState,
+  ] = useState(
+    INITIAL_STATE,
+  );
+
+  const requestSequence =
+    useRef(0);
+
+  const refreshClients =
+    useCallback(
+      async ({
+        search,
+        status,
+        silent = false,
+      } = {}) => {
+        if (
+          !workspaceReady ||
+          !organizationId
+        ) {
+          setState(
+            (current) => ({
+              ...current,
+              clients: [],
+              selectedRelationshipId: null,
+              selectedClientWorkspace: null,
+              loading: false,
+            }),
+          );
+
+          return [];
+        }
+
+        const nextSearch =
+          search ??
+          state.filters.search;
+
+        const nextStatus =
+          status ??
+          state.filters.status;
+
+        const sequence =
+          ++requestSequence.current;
+
+        if (!silent) {
+          setState(
+            (current) => ({
+              ...current,
+              loading: true,
+              error: null,
+
+              filters: {
+                search:
+                  nextSearch,
+                status:
+                  nextStatus,
+              },
+            }),
+          );
+        }
+
+        try {
+          const clients =
+            await clientOrganizationService
+              .getClientDirectory(
+                organizationId,
+                {
+                  search:
+                    nextSearch,
+                  status:
+                    nextStatus,
+                },
+              );
+
+          if (
+            sequence !==
+            requestSequence.current
+          ) {
+            return clients;
+          }
+
+          setState(
+            (current) => {
+              const selectedExists =
+                clients.some(
+                  (client) =>
+                    client.relationship
+                      ?.id ===
+                    current.selectedRelationshipId,
+                );
+
+              return {
+                ...current,
+                clients,
+                loading: false,
+
+                filters: {
+                  search:
+                    nextSearch,
+                  status:
+                    nextStatus,
+                },
+
+                selectedRelationshipId:
+                  selectedExists
+                    ? current.selectedRelationshipId
+                    : clients[0]
+                        ?.relationship
+                        ?.id ??
+                      null,
+              };
+            },
+          );
+
+          return clients;
+        } catch (error) {
+          const normalizedError =
+            normalizeError(error);
+
+          setState(
+            (current) => ({
+              ...current,
+              loading: false,
+              error:
+                normalizedError,
+            }),
+          );
+
+          throw normalizedError;
+        }
+      },
+      [
+        organizationId,
+        state.filters.search,
+        state.filters.status,
+        workspaceReady,
+      ],
+    );
+
+  const loadClientWorkspace =
+    useCallback(
+      async (
+        relationshipId,
+        {
+          silent = false,
+        } = {},
+      ) => {
+        if (
+          !workspaceReady ||
+          !organizationId ||
+          !relationshipId
+        ) {
+          setState(
+            (current) => ({
+              ...current,
+              selectedClientWorkspace:
+                null,
+              workspaceLoading:
+                false,
+            }),
+          );
+
+          return null;
+        }
+
+        if (!silent) {
+          setState(
+            (current) => ({
+              ...current,
+              workspaceLoading:
+                true,
+              error: null,
+            }),
+          );
+        }
+
+        try {
+          const workspace =
+            await clientOrganizationService
+              .getClientWorkspace(
+                organizationId,
+                relationshipId,
+              );
+
+          setState(
+            (current) => ({
+              ...current,
+              selectedRelationshipId:
+                relationshipId,
+              selectedClientWorkspace:
+                workspace,
+              workspaceLoading:
+                false,
+            }),
+          );
+
+          return workspace;
+        } catch (error) {
+          const normalizedError =
+            normalizeError(error);
+
+          setState(
+            (current) => ({
+              ...current,
+              workspaceLoading:
+                false,
+              error:
+                normalizedError,
+            }),
+          );
+
+          throw normalizedError;
+        }
+      },
+      [
+        organizationId,
+        workspaceReady,
+      ],
+    );
+
+  const selectClient =
+    useCallback(
+      async (
+        relationshipId,
+      ) => {
+        setState(
+          (current) => ({
+            ...current,
+            selectedRelationshipId:
+              relationshipId,
+          }),
+        );
+
+        return loadClientWorkspace(
+          relationshipId,
+        );
+      },
+      [
+        loadClientWorkspace,
+      ],
+    );
+
+  const runSave =
+    useCallback(
+      async (
+        operation,
+        {
+          refreshDirectory = true,
+          refreshWorkspace = true,
+        } = {},
+      ) => {
+        setState(
+          (current) => ({
+            ...current,
+            saving: true,
+            error: null,
+          }),
+        );
+
+        try {
+          const result =
+            await operation();
+
+          const relationshipId =
+            state.selectedRelationshipId;
+
+          if (
+            refreshDirectory
+          ) {
+            await refreshClients({
+              silent: true,
+            });
+          }
+
+          if (
+            refreshWorkspace &&
+            relationshipId
+          ) {
+            await loadClientWorkspace(
+              relationshipId,
+              {
+                silent: true,
+              },
+            );
+          }
+
+          setState(
+            (current) => ({
+              ...current,
+              saving: false,
+            }),
+          );
+
+          return result;
+        } catch (error) {
+          const normalizedError =
+            normalizeError(error);
+
+          setState(
+            (current) => ({
+              ...current,
+              saving: false,
+              error:
+                normalizedError,
+            }),
+          );
+
+          throw normalizedError;
+        }
+      },
+      [
+        loadClientWorkspace,
+        refreshClients,
+        state.selectedRelationshipId,
+      ],
+    );
+
+  const createClient =
+    useCallback(
+      async (
+        payload,
+      ) =>
+        runSave(
+          async () => {
+            const result =
+              await clientOrganizationService
+                .createClient(
+                  organizationId,
+                  payload,
+                );
+
+            setState(
+              (current) => ({
+                ...current,
+                selectedRelationshipId:
+                  result.relationship
+                    ?.id ??
+                  null,
+              }),
+            );
+
+            return result;
+          },
+          {
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        organizationId,
+        runSave,
+      ],
+    );
+
+  const updateClientOrganization =
+    useCallback(
+      async (
+        clientOrganizationId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .updateClientOrganization(
+                clientOrganizationId,
+                payload,
+              ),
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const updateClientProfileWorkspace =
+    useCallback(
+      async (
+        clientOrganizationId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .updateClientProfileWorkspace(
+                clientOrganizationId,
+                payload,
+              ),
+        ),
+      [
+        runSave,
+      ],
+    );
+  const updateRelationship =
+    useCallback(
+      async (
+        relationshipId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .updateRelationship(
+                relationshipId,
+                payload,
+              ),
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const changeRelationshipStatus =
+    useCallback(
+      async (
+        relationshipId,
+        status,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .changeRelationshipStatus(
+                relationshipId,
+                status,
+              ),
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const createContact =
+    useCallback(
+      async (
+        clientOrganizationId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .createContact(
+                clientOrganizationId,
+                payload,
+              ),
+          {
+            refreshDirectory:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const updateContact =
+    useCallback(
+      async (
+        contactId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .updateContact(
+                contactId,
+                payload,
+              ),
+          {
+            refreshDirectory:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const getClientContacts =
+    useCallback(
+      async (
+        clientOrganizationId,
+        options,
+      ) =>
+        clientOrganizationService
+          .getContacts(
+            clientOrganizationId,
+            options,
+          ),
+      [],
+    );
+
+  const setPrimaryContact =
+    useCallback(
+      async (
+        clientOrganizationId,
+        contactId,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .setPrimaryContact(
+                clientOrganizationId,
+                contactId,
+              ),
+          {
+            refreshDirectory:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+  const archiveContact =
+    useCallback(
+      async (
+        contactId,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .archiveContact(
+                contactId,
+                user?.id ?? null,
+              ),
+          {
+            refreshDirectory:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const restoreContact =
+    useCallback(
+      async (
+        contactId,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .restoreContact(
+                contactId,
+              ),
+          {
+            refreshDirectory:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const getClientDocuments =
+    useCallback(
+      async (
+        relationshipId,
+        options,
+      ) =>
+        clientDocumentsService
+          .getDocuments(
+            relationshipId,
+            options,
+          ),
+      [],
+    );
+
+  const getClientDocumentWorkspace =
+    useCallback(
+      async (
+        documentId,
+      ) =>
+        clientDocumentsService
+          .getDocumentWorkspace(
+            documentId,
+          ),
+      [],
+    );
+
+  const createClientDocument =
+    useCallback(
+      async ({
+        relationshipId,
+        clientOrganizationId,
+        payload,
+        file,
+      }) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .createDocument({
+                relationshipId,
+                clientOrganizationId,
+                payload,
+                file,
+                actorUserId:
+                  user?.id ?? null,
+              }),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const uploadClientDocumentVersion =
+    useCallback(
+      async ({
+        relationshipId,
+        documentId,
+        file,
+        changeSummary,
+      }) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .uploadVersion({
+                relationshipId,
+                documentId,
+                file,
+                changeSummary,
+                actorUserId:
+                  user?.id ?? null,
+              }),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const updateClientDocument =
+    useCallback(
+      async (
+        documentId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .updateDocument(
+                documentId,
+                payload,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const submitClientDocumentForReview =
+    useCallback(
+      async (
+        documentId,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .submitForReview(
+                documentId,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const approveClientDocument =
+    useCallback(
+      async (
+        documentId,
+        reviewNotes,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .approveDocument(
+                documentId,
+                user?.id ?? null,
+                reviewNotes,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const rejectClientDocument =
+    useCallback(
+      async (
+        documentId,
+        reviewNotes,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .rejectDocument(
+                documentId,
+                user?.id ?? null,
+                reviewNotes,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const archiveClientDocument =
+    useCallback(
+      async (
+        documentId,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .archiveDocument(
+                documentId,
+                user?.id ?? null,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const restoreClientDocument =
+    useCallback(
+      async (
+        documentId,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .restoreDocument(
+                documentId,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const addClientDocumentNote =
+    useCallback(
+      async (
+        documentId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .addNote(
+                documentId,
+                payload,
+                user?.id ?? null,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const createClientDocumentSignedUrl =
+    useCallback(
+      async (
+        versionId,
+        expiresInSeconds,
+      ) =>
+        clientDocumentsService
+          .createSignedUrl(
+            versionId,
+            expiresInSeconds,
+          ),
+      [],
+    );
+
+  const downloadClientDocumentVersion =
+    useCallback(
+      async (
+        versionId,
+      ) =>
+        clientDocumentsService
+          .downloadVersion(
+            versionId,
+          ),
+      [],
+    );
+  const saveOnboarding =
+    useCallback(
+      async (
+        relationshipId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientOrganizationService
+              .saveOnboarding(
+                relationshipId,
+                payload,
+              ),
+          {
+            refreshDirectory:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const setFilters =
+    useCallback(
+      (
+        filters,
+      ) => {
+        setState(
+          (current) => ({
+            ...current,
+
+            filters: {
+              ...current.filters,
+              ...filters,
+            },
+          }),
+        );
+      },
+      [],
+    );
+
+  const clearError =
+    useCallback(
+      () => {
+        setState(
+          (current) => ({
+            ...current,
+            error: null,
+          }),
+        );
+      },
+      [],
+    );
+
+  const value =
+    useMemo(
+      () => ({
+        ...state,
+
+        selectedClient:
+          state.clients.find(
+            (client) =>
+              client.relationship
+                ?.id ===
+              state.selectedRelationshipId,
+          ) ?? null,
+
+        refreshClients,
+        loadClientWorkspace,
+        selectClient,
+        createClient,
+        updateClientOrganization,
+        updateClientProfileWorkspace,
+        updateRelationship,
+        changeRelationshipStatus,
+        createContact,
+        updateContact,
+        getClientContacts,
+        setPrimaryContact,
+        archiveContact,
+        restoreContact,
+        getClientDocuments,
+        getClientDocumentWorkspace,
+        createClientDocument,
+        uploadClientDocumentVersion,
+        updateClientDocument,
+        submitClientDocumentForReview,
+        approveClientDocument,
+        rejectClientDocument,
+        archiveClientDocument,
+        restoreClientDocument,
+        addClientDocumentNote,
+        createClientDocumentSignedUrl,
+        downloadClientDocumentVersion,
+        saveOnboarding,
+        setFilters,
+        clearError,
+      }),
+      [
+        addClientDocumentNote,
+        approveClientDocument,
+        archiveClientDocument,
+        archiveContact,
+        changeRelationshipStatus,
+        createClientDocument,
+        createClientDocumentSignedUrl,
+        clearError,
+        createClient,
+        createContact,
+        downloadClientDocumentVersion,
+        getClientContacts,
+        getClientDocumentWorkspace,
+        getClientDocuments,
+        loadClientWorkspace,
+        refreshClients,
+        rejectClientDocument,
+        restoreClientDocument,
+        restoreContact,
+        saveOnboarding,
+        selectClient,
+        setPrimaryContact,
+        setFilters,
+        state,
+        submitClientDocumentForReview,
+        updateClientDocument,
+        uploadClientDocumentVersion,
+        updateClientOrganization,
+        updateClientProfileWorkspace,
+        updateContact,
+        updateRelationship,
+      ],
+    );
+
+  return (
+    <ClientContext.Provider
+      value={value}
+    >
+      {children}
+    </ClientContext.Provider>
+  );
+}
+
+
+=== DOCUMENT SERVICE ===
+import {
+  clientDocumentsRepository,
+} from "../api";
+
+import {
+  clientDocumentStorage,
+} from "./ClientDocumentStorage";
+
+import {
+  mapClientDocument,
+  mapClientDocumentActivity,
+  mapClientDocumentNote,
+  mapClientDocumentVersion,
+} from "../utils";
+
+const DOCUMENT_TYPES =
+  new Set([
+    "master_service_agreement",
+    "business_associate_agreement",
+    "non_disclosure_agreement",
+    "certificate_of_insurance",
+    "w9",
+    "ach_authorization",
+    "rate_agreement",
+    "facility_requirements",
+    "orientation_packet",
+    "compliance_document",
+    "vendor_packet",
+    "other",
+  ]);
+
+const DOCUMENT_STATUSES =
+  new Set([
+    "draft",
+    "uploaded",
+    "under_review",
+    "approved",
+    "rejected",
+    "expired",
+    "archived",
+  ]);
+
+function requireIdentifier(
+  value,
+  label,
+) {
+  if (!value) {
+    throw new Error(
+      `${label} is required.`,
+    );
+  }
+
+  return value;
+}
+
+function trimOrNull(value) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  const normalized =
+    String(value).trim();
+
+  return normalized ||
+    null;
+}
+
+function requireText(
+  value,
+  label,
+) {
+  const normalized =
+    trimOrNull(value);
+
+  if (!normalized) {
+    throw new Error(
+      `${label} is required.`,
+    );
+  }
+
+  return normalized;
+}
+
+function normalizeBoolean(
+  value,
+  defaultValue = false,
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return defaultValue;
+  }
+
+  return Boolean(value);
+}
+
+function removeUndefinedValues(
+  payload,
+) {
+  return Object.fromEntries(
+    Object.entries(payload)
+      .filter(
+        ([, value]) =>
+          value !== undefined,
+      ),
+  );
+}
+
+function mapWorkspace(
+  workspace,
+) {
+  if (!workspace) {
+    return null;
+  }
+
+  return {
+    document:
+      mapClientDocument(
+        workspace.document,
+      ),
+
+    versions:
+      workspace.versions
+        .map(
+          mapClientDocumentVersion,
+        )
+        .filter(Boolean),
+
+    notes:
+      workspace.notes
+        .map(
+          mapClientDocumentNote,
+        )
+        .filter(Boolean),
+
+    activity:
+      workspace.activity
+        .map(
+          mapClientDocumentActivity,
+        )
+        .filter(Boolean),
+  };
+}
+
+export class ClientDocumentsService {
+  constructor({
+    repository =
+      clientDocumentsRepository,
+
+    storage =
+      clientDocumentStorage,
+  } = {}) {
+    this.repository =
+      repository;
+
+    this.storage =
+      storage;
+  }
+
+  async getDocuments(
+    relationshipId,
+    options,
+  ) {
+    requireIdentifier(
+      relationshipId,
+      "Client relationship ID",
+    );
+
+    const records =
+      await this.repository
+        .getDocuments(
+          relationshipId,
+          options,
+        );
+
+    return records
+      .map(
+        mapClientDocument,
+      )
+      .filter(Boolean);
+  }
+
+  async getDocumentWorkspace(
+    documentId,
+  ) {
+    requireIdentifier(
+      documentId,
+      "Client document ID",
+    );
+
+    return mapWorkspace(
+      await this.repository
+        .loadDocumentWorkspace(
+          documentId,
+        ),
+    );
+  }
+
+  async createDocument({
+    relationshipId,
+    clientOrganizationId,
+    payload,
+    file = null,
+    actorUserId = null,
+  }) {
+    requireIdentifier(
+      relationshipId,
+      "Client relationship ID",
+    );
+
+    requireIdentifier(
+      clientOrganizationId,
+      "Client organization ID",
+    );
+
+    const documentType =
+      payload.documentType ??
+      "other";
+
+    if (
+      !DOCUMENT_TYPES.has(
+        documentType,
+      )
+    ) {
+      throw new Error(
+        "Client document type is invalid.",
+      );
+    }
+
+    const document =
+      await this.repository
+        .createDocument({
+          client_relationship_id:
+            relationshipId,
+
+          client_organization_id:
+            clientOrganizationId,
+
+          document_type:
+            documentType,
+
+          title:
+            requireText(
+              payload.title,
+              "Document title",
+            ),
+
+          description:
+            trimOrNull(
+              payload.description,
+            ),
+
+          status:
+            file
+              ? "draft"
+              : payload.status ??
+                "draft",
+
+          is_required:
+            normalizeBoolean(
+              payload.isRequired,
+            ),
+
+          effective_date:
+            trimOrNull(
+              payload.effectiveDate,
+            ),
+
+          expiration_date:
+            trimOrNull(
+              payload.expirationDate,
+            ),
+
+          review_notes:
+            trimOrNull(
+              payload.reviewNotes,
+            ),
+
+          created_by:
+            actorUserId,
+        });
+
+    if (!file) {
+      return {
+        document:
+          mapClientDocument(
+            document,
+          ),
+
+        version: null,
+      };
+    }
+
+    try {
+      const version =
+        await this.uploadVersion({
+          relationshipId,
+          documentId:
+            document.id,
+
+          file,
+
+          changeSummary:
+            payload.changeSummary ??
+            "Initial upload.",
+
+          actorUserId,
+        });
+
+      return {
+        document:
+          mapClientDocument(
+            await this.repository
+              .getDocument(
+                document.id,
+              ),
+          ),
+
+        version,
+      };
+    } catch (error) {
+      await this.repository
+        .updateDocument(
+          document.id,
+          {
+            status:
+              "archived",
+
+            archived_at:
+              new Date()
+                .toISOString(),
+
+            archived_by:
+              actorUserId,
+          },
+        );
+
+      throw error;
+    }
+  }
+
+  async uploadVersion({
+    relationshipId,
+    documentId,
+    file,
+    changeSummary = null,
+    actorUserId = null,
+  }) {
+    requireIdentifier(
+      relationshipId,
+      "Client relationship ID",
+    );
+
+    requireIdentifier(
+      documentId,
+      "Client document ID",
+    );
+
+    const document =
+      await this.repository
+        .getDocument(
+          documentId,
+        );
+
+    if (!document) {
+      throw new Error(
+        "Client document was not found.",
+      );
+    }
+
+    if (
+      document.client_relationship_id !==
+      relationshipId
+    ) {
+      throw new Error(
+        "Client document does not belong to this relationship.",
+      );
+    }
+
+    const nextVersionNumber =
+      Number(
+        document.current_version_number ??
+        0,
+      ) + 1;
+
+    const uploaded =
+      await this.storage
+        .uploadVersion({
+          relationshipId,
+          documentId,
+          versionNumber:
+            nextVersionNumber,
+          file,
+        });
+
+    try {
+      const version =
+        await this.repository
+          .createVersion({
+            client_document_id:
+              documentId,
+
+            version_number:
+              nextVersionNumber,
+
+            storage_bucket:
+              uploaded.bucket,
+
+            storage_path:
+              uploaded.path,
+
+            original_file_name:
+              uploaded.originalFileName,
+
+            stored_file_name:
+              uploaded.storedFileName,
+
+            mime_type:
+              uploaded.mimeType,
+
+            file_size_bytes:
+              uploaded.fileSizeBytes,
+
+            checksum:
+              null,
+
+            change_summary:
+              trimOrNull(
+                changeSummary,
+              ),
+
+            uploaded_by:
+              actorUserId,
+
+            created_by:
+              actorUserId,
+          });
+
+      return mapClientDocumentVersion(
+        version,
+      );
+    } catch (error) {
+      await this.storage
+        .removeObject(
+          uploaded.path,
+        );
+
+      throw error;
+    }
+  }
+
+  async updateDocument(
+    documentId,
+    payload,
+  ) {
+    requireIdentifier(
+      documentId,
+      "Client document ID",
+    );
+
+    if (
+      payload.documentType !==
+        undefined &&
+      !DOCUMENT_TYPES.has(
+        payload.documentType,
+      )
+    ) {
+      throw new Error(
+        "Client document type is invalid.",
+      );
+    }
+
+    if (
+      payload.status !==
+        undefined &&
+      !DOCUMENT_STATUSES.has(
+        payload.status,
+      )
+    ) {
+      throw new Error(
+        "Client document status is invalid.",
+      );
+    }
+
+    return mapClientDocument(
+      await this.repository
+        .updateDocument(
+          documentId,
+          removeUndefinedValues({
+            document_type:
+              payload.documentType,
+
+            title:
+              payload.title ===
+              undefined
+                ? undefined
+                : requireText(
+                    payload.title,
+                    "Document title",
+                  ),
+
+            description:
+              payload.description ===
+              undefined
+                ? undefined
+                : trimOrNull(
+                    payload.description,
+                  ),
+
+            status:
+              payload.status,
+
+            is_required:
+              payload.isRequired,
+
+            effective_date:
+              payload.effectiveDate ===
+              undefined
+                ? undefined
+                : trimOrNull(
+                    payload.effectiveDate,
+                  ),
+
+            expiration_date:
+              payload.expirationDate ===
+              undefined
+                ? undefined
+                : trimOrNull(
+                    payload.expirationDate,
+                  ),
+
+            review_notes:
+              payload.reviewNotes ===
+              undefined
+                ? undefined
+                : trimOrNull(
+                    payload.reviewNotes,
+                  ),
+
+            approved_by:
+              payload.approvedBy,
+
+            rejected_by:
+              payload.rejectedBy,
+          }),
+        ),
+    );
+  }
+
+  async submitForReview(
+    documentId,
+  ) {
+    return this.updateDocument(
+      documentId,
+      {
+        status:
+          "under_review",
+      },
+    );
+  }
+
+  async approveDocument(
+    documentId,
+    actorUserId,
+    reviewNotes = null,
+  ) {
+    return this.updateDocument(
+      documentId,
+      {
+        status:
+          "approved",
+
+        approvedBy:
+          actorUserId,
+
+        reviewNotes,
+      },
+    );
+  }
+
+  async rejectDocument(
+    documentId,
+    actorUserId,
+    reviewNotes,
+  ) {
+    return this.updateDocument(
+      documentId,
+      {
+        status:
+          "rejected",
+
+        rejectedBy:
+          actorUserId,
+
+        reviewNotes:
+          requireText(
+            reviewNotes,
+            "Rejection notes",
+          ),
+      },
+    );
+  }
+
+  async archiveDocument(
+    documentId,
+    actorUserId,
+  ) {
+    return mapClientDocument(
+      await this.repository
+        .updateDocument(
+          documentId,
+          {
+            status:
+              "archived",
+
+            archived_at:
+              new Date()
+                .toISOString(),
+
+            archived_by:
+              actorUserId,
+          },
+        ),
+    );
+  }
+
+  async restoreDocument(
+    documentId,
+  ) {
+    const document =
+      await this.repository
+        .getDocument(
+          documentId,
+        );
+
+    if (!document) {
+      throw new Error(
+        "Client document was not found.",
+      );
+    }
+
+    return mapClientDocument(
+      await this.repository
+        .updateDocument(
+          documentId,
+          {
+            status:
+              document.current_version_number > 0
+                ? "uploaded"
+                : "draft",
+
+            archived_at:
+              null,
+
+            archived_by:
+              null,
+          },
+        ),
+    );
+  }
+
+  async addNote(
+    documentId,
+    payload,
+    actorUserId = null,
+  ) {
+    requireIdentifier(
+      documentId,
+      "Client document ID",
+    );
+
+    return mapClientDocumentNote(
+      await this.repository
+        .createNote({
+          client_document_id:
+            documentId,
+
+          note:
+            requireText(
+              payload.note,
+              "Document note",
+            ),
+
+          is_internal:
+            normalizeBoolean(
+              payload.isInternal,
+              true,
+            ),
+
+          created_by:
+            actorUserId,
+        }),
+    );
+  }
+
+  async archiveNote(
+    noteId,
+    actorUserId,
+  ) {
+    requireIdentifier(
+      noteId,
+      "Client document note ID",
+    );
+
+    return mapClientDocumentNote(
+      await this.repository
+        .updateNote(
+          noteId,
+          {
+            archived_at:
+              new Date()
+                .toISOString(),
+
+            archived_by:
+              actorUserId,
+          },
+        ),
+    );
+  }
+
+  async createSignedUrl(
+    versionId,
+    expiresInSeconds = 300,
+  ) {
+    const version =
+      await this.repository
+        .getVersion(
+          requireIdentifier(
+            versionId,
+            "Client document version ID",
+          ),
+        );
+
+    if (!version) {
+      throw new Error(
+        "Client document version was not found.",
+      );
+    }
+
+    return this.storage
+      .createSignedUrl(
+        version.storage_path,
+        expiresInSeconds,
+      );
+  }
+
+  async downloadVersion(
+    versionId,
+  ) {
+    const version =
+      await this.repository
+        .getVersion(
+          requireIdentifier(
+            versionId,
+            "Client document version ID",
+          ),
+        );
+
+    if (!version) {
+      throw new Error(
+        "Client document version was not found.",
+      );
+    }
+
+    return {
+      fileName:
+        version.original_file_name,
+
+      mimeType:
+        version.mime_type,
+
+      blob:
+        await this.storage
+          .download(
+            version.storage_path,
+          ),
+    };
+  }
+}
+
+export function createClientDocumentsService(
+  options,
+) {
+  return new ClientDocumentsService(
+    options,
+  );
+}
+
+export const clientDocumentsService =
+  createClientDocumentsService();
+
+
+=== DOCUMENT REPOSITORY ===
+import {
+  isSupabaseConfigured,
+  supabase,
+} from "../../../services/supabase";
+
+function requireSupabase() {
+  if (
+    !isSupabaseConfigured ||
+    !supabase
+  ) {
+    throw new Error(
+      "Supabase is not configured.",
+    );
+  }
+
+  return supabase;
+}
+
+function requireIdentifier(
+  value,
+  label,
+) {
+  if (!value) {
+    throw new Error(
+      `${label} is required.`,
+    );
+  }
+
+  return value;
+}
+
+async function executeSingle(query) {
+  const {
+    data,
+    error,
+  } = await query.maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? null;
+}
+
+async function executeRequiredSingle(
+  query,
+) {
+  const {
+    data,
+    error,
+  } = await query.single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+const DOCUMENT_SELECT = `
+  id,
+  client_relationship_id,
+  client_organization_id,
+  document_number,
+  document_type,
+  title,
+  description,
+  status,
+  is_required,
+  effective_date,
+  expiration_date,
+  current_version_number,
+  current_version_id,
+  review_notes,
+  approved_at,
+  approved_by,
+  rejected_at,
+  rejected_by,
+  created_at,
+  created_by,
+  updated_at,
+  updated_by,
+  archived_at,
+  archived_by
+`;
+
+const VERSION_SELECT = `
+  id,
+  client_document_id,
+  version_number,
+  storage_bucket,
+  storage_path,
+  original_file_name,
+  stored_file_name,
+  mime_type,
+  file_size_bytes,
+  checksum,
+  change_summary,
+  uploaded_at,
+  uploaded_by,
+  created_at,
+  created_by
+`;
+
+const NOTE_SELECT = `
+  id,
+  client_document_id,
+  note,
+  is_internal,
+  created_at,
+  created_by,
+  updated_at,
+  updated_by,
+  archived_at,
+  archived_by
+`;
+
+const ACTIVITY_SELECT = `
+  id,
+  client_document_id,
+  activity_type,
+  summary,
+  metadata,
+  actor_user_id,
+  occurred_at
+`;
+
+export class ClientDocumentsRepository {
+  async getDocuments(
+    relationshipId,
+    {
+      includeArchived = false,
+    } = {},
+  ) {
+    const client =
+      requireSupabase();
+
+    let query =
+      client
+        .from("client_documents")
+        .select(DOCUMENT_SELECT)
+        .eq(
+          "client_relationship_id",
+          requireIdentifier(
+            relationshipId,
+            "Client relationship ID",
+          ),
+        )
+        .order(
+          "updated_at",
+          {
+            ascending: false,
+          },
+        );
+
+    if (!includeArchived) {
+      query =
+        query.is(
+          "archived_at",
+          null,
+        );
+    }
+
+    const {
+      data,
+      error,
+    } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  async getDocument(
+    documentId,
+  ) {
+    const client =
+      requireSupabase();
+
+    return executeSingle(
+      client
+        .from("client_documents")
+        .select(DOCUMENT_SELECT)
+        .eq(
+          "id",
+          requireIdentifier(
+            documentId,
+            "Client document ID",
+          ),
+        ),
+    );
+  }
+
+  async createDocument(
+    payload,
+  ) {
+    const client =
+      requireSupabase();
+
+    return executeRequiredSingle(
+      client
+        .from("client_documents")
+        .insert(payload)
+        .select(DOCUMENT_SELECT),
+    );
+  }
+
+  async updateDocument(
+    documentId,
+    payload,
+  ) {
+    const client =
+      requireSupabase();
+
+    return executeRequiredSingle(
+      client
+        .from("client_documents")
+        .update(payload)
+        .eq(
+          "id",
+          requireIdentifier(
+            documentId,
+            "Client document ID",
+          ),
+        )
+        .select(DOCUMENT_SELECT),
+    );
+  }
+
+  async getVersions(
+    documentId,
+  ) {
+    const client =
+      requireSupabase();
+
+    const {
+      data,
+      error,
+    } = await client
+      .from(
+        "client_document_versions",
+      )
+      .select(VERSION_SELECT)
+      .eq(
+        "client_document_id",
+        requireIdentifier(
+          documentId,
+          "Client document ID",
+        ),
+      )
+      .order(
+        "version_number",
+        {
+          ascending: false,
+        },
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  async getVersion(
+    versionId,
+  ) {
+    const client =
+      requireSupabase();
+
+    return executeSingle(
+      client
+        .from(
+          "client_document_versions",
+        )
+        .select(VERSION_SELECT)
+        .eq(
+          "id",
+          requireIdentifier(
+            versionId,
+            "Client document version ID",
+          ),
+        ),
+    );
+  }
+
+  async createVersion(
+    payload,
+  ) {
+    const client =
+      requireSupabase();
+
+    return executeRequiredSingle(
+      client
+        .from(
+          "client_document_versions",
+        )
+        .insert(payload)
+        .select(VERSION_SELECT),
+    );
+  }
+
+  async getNotes(
+    documentId,
+    {
+      includeArchived = false,
+    } = {},
+  ) {
+    const client =
+      requireSupabase();
+
+    let query =
+      client
+        .from(
+          "client_document_notes",
+        )
+        .select(NOTE_SELECT)
+        .eq(
+          "client_document_id",
+          requireIdentifier(
+            documentId,
+            "Client document ID",
+          ),
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          },
+        );
+
+    if (!includeArchived) {
+      query =
+        query.is(
+          "archived_at",
+          null,
+        );
+    }
+
+    const {
+      data,
+      error,
+    } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  async createNote(
+    payload,
+  ) {
+    const client =
+      requireSupabase();
+
+    return executeRequiredSingle(
+      client
+        .from(
+          "client_document_notes",
+        )
+        .insert(payload)
+        .select(NOTE_SELECT),
+    );
+  }
+
+  async updateNote(
+    noteId,
+    payload,
+  ) {
+    const client =
+      requireSupabase();
+
+    return executeRequiredSingle(
+      client
+        .from(
+          "client_document_notes",
+        )
+        .update(payload)
+        .eq(
+          "id",
+          requireIdentifier(
+            noteId,
+            "Client document note ID",
+          ),
+        )
+        .select(NOTE_SELECT),
+    );
+  }
+
+  async getActivity(
+    documentId,
+  ) {
+    const client =
+      requireSupabase();
+
+    const {
+      data,
+      error,
+    } = await client
+      .from(
+        "client_document_activity",
+      )
+      .select(ACTIVITY_SELECT)
+      .eq(
+        "client_document_id",
+        requireIdentifier(
+          documentId,
+          "Client document ID",
+        ),
+      )
+      .order(
+        "occurred_at",
+        {
+          ascending: false,
+        },
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
+
+  async createActivity(
+    payload,
+  ) {
+    const client =
+      requireSupabase();
+
+    return executeRequiredSingle(
+      client
+        .from(
+          "client_document_activity",
+        )
+        .insert(payload)
+        .select(ACTIVITY_SELECT),
+    );
+  }
+
+  async loadDocumentWorkspace(
+    documentId,
+  ) {
+    const document =
+      await this.getDocument(
+        documentId,
+      );
+
+    if (!document) {
+      return null;
+    }
+
+    const [
+      versions,
+      notes,
+      activity,
+    ] = await Promise.all([
+      this.getVersions(
+        documentId,
+      ),
+
+      this.getNotes(
+        documentId,
+      ),
+
+      this.getActivity(
+        documentId,
+      ),
+    ]);
+
+    return {
+      document,
+      versions,
+      notes,
+      activity,
+    };
+  }
+}
+
+export function createClientDocumentsRepository() {
+  return new ClientDocumentsRepository();
+}
+
+export const clientDocumentsRepository =
+  createClientDocumentsRepository();
+
+
+=== DOCUMENT STORAGE ===
+import {
+  isSupabaseConfigured,
+  supabase,
+} from "../../../services/supabase";
+
+export const CLIENT_DOCUMENT_BUCKET =
+  "client-documents";
+
+export const CLIENT_DOCUMENT_MAX_FILE_SIZE =
+  25 * 1024 * 1024;
+
+export const CLIENT_DOCUMENT_ALLOWED_MIME_TYPES =
+  new Set([
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "image/jpeg",
+    "image/png",
+  ]);
+
+function requireSupabase() {
+  if (
+    !isSupabaseConfigured ||
+    !supabase
+  ) {
+    throw new Error(
+      "Supabase is not configured.",
+    );
+  }
+
+  return supabase;
+}
+
+function requireIdentifier(
+  value,
+  label,
+) {
+  if (!value) {
+    throw new Error(
+      `${label} is required.`,
+    );
+  }
+
+  return value;
+}
+
+function sanitizeFileName(value) {
+  const source =
+    String(value ?? "")
+      .trim();
+
+  const extensionIndex =
+    source.lastIndexOf(".");
+
+  const extension =
+    extensionIndex >= 0
+      ? source
+          .slice(extensionIndex)
+          .toLowerCase()
+      : "";
+
+  const baseName =
+    extensionIndex >= 0
+      ? source.slice(
+          0,
+          extensionIndex,
+        )
+      : source;
+
+  const safeBase =
+    baseName
+      .normalize("NFKD")
+      .replace(
+        /[\u0300-\u036f]/g,
+        "",
+      )
+      .replace(
+        /[^a-zA-Z0-9-_]+/g,
+        "-",
+      )
+      .replace(
+        /^-+|-+$/g,
+        "",
+      )
+      .slice(
+        0,
+        120,
+      ) ||
+    "document";
+
+  return `${safeBase}${extension}`;
+}
+
+function createStoredFileName(
+  originalFileName,
+) {
+  return [
+    Date.now(),
+    crypto.randomUUID(),
+    sanitizeFileName(
+      originalFileName,
+    ),
+  ].join("-");
+}
+
+export class ClientDocumentStorage {
+  validateFile(file) {
+    if (!file) {
+      throw new Error(
+        "A document file is required.",
+      );
+    }
+
+    if (
+      !CLIENT_DOCUMENT_ALLOWED_MIME_TYPES
+        .has(file.type)
+    ) {
+      throw new Error(
+        "This file type is not supported.",
+      );
+    }
+
+    if (
+      file.size <= 0
+    ) {
+      throw new Error(
+        "The selected file is empty.",
+      );
+    }
+
+    if (
+      file.size >
+      CLIENT_DOCUMENT_MAX_FILE_SIZE
+    ) {
+      throw new Error(
+        "The file cannot exceed 25 MB.",
+      );
+    }
+
+    return file;
+  }
+
+  buildStoragePath({
+    relationshipId,
+    documentId,
+    versionNumber,
+    fileName,
+  }) {
+    return [
+      requireIdentifier(
+        relationshipId,
+        "Client relationship ID",
+      ),
+
+      requireIdentifier(
+        documentId,
+        "Client document ID",
+      ),
+
+      `v${versionNumber}`,
+
+      fileName,
+    ].join("/");
+  }
+
+  async uploadVersion({
+    relationshipId,
+    documentId,
+    versionNumber,
+    file,
+  }) {
+    const client =
+      requireSupabase();
+
+    this.validateFile(
+      file,
+    );
+
+    const storedFileName =
+      createStoredFileName(
+        file.name,
+      );
+
+    const storagePath =
+      this.buildStoragePath({
+        relationshipId,
+        documentId,
+        versionNumber,
+        fileName:
+          storedFileName,
+      });
+
+    const {
+      data,
+      error,
+    } = await client.storage
+      .from(
+        CLIENT_DOCUMENT_BUCKET,
+      )
+      .upload(
+        storagePath,
+        file,
+        {
+          cacheControl:
+            "3600",
+
+          contentType:
+            file.type,
+
+          upsert:
+            false,
+        },
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    return {
+      bucket:
+        CLIENT_DOCUMENT_BUCKET,
+
+      path:
+        data.path,
+
+      originalFileName:
+        file.name,
+
+      storedFileName,
+
+      mimeType:
+        file.type,
+
+      fileSizeBytes:
+        file.size,
+    };
+  }
+
+  async removeObject(
+    storagePath,
+  ) {
+    const client =
+      requireSupabase();
+
+    const {
+      error,
+    } = await client.storage
+      .from(
+        CLIENT_DOCUMENT_BUCKET,
+      )
+      .remove([
+        storagePath,
+      ]);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async createSignedUrl(
+    storagePath,
+    expiresInSeconds = 300,
+  ) {
+    const client =
+      requireSupabase();
+
+    const {
+      data,
+      error,
+    } = await client.storage
+      .from(
+        CLIENT_DOCUMENT_BUCKET,
+      )
+      .createSignedUrl(
+        requireIdentifier(
+          storagePath,
+          "Storage path",
+        ),
+        expiresInSeconds,
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    return data?.signedUrl ??
+      null;
+  }
+
+  async download(
+    storagePath,
+  ) {
+    const client =
+      requireSupabase();
+
+    const {
+      data,
+      error,
+    } = await client.storage
+      .from(
+        CLIENT_DOCUMENT_BUCKET,
+      )
+      .download(
+        requireIdentifier(
+          storagePath,
+          "Storage path",
+        ),
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+}
+
+export function createClientDocumentStorage() {
+  return new ClientDocumentStorage();
+}
+
+export const clientDocumentStorage =
+  createClientDocumentStorage();
+
+
+=== DOCUMENT PAGE ===
+import {
+  FileText,
+} from "lucide-react";
+
+export default function ClientDocumentsPage() {
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+      <FileText
+        size={42}
+        className="mx-auto text-blue-500"
+      />
+
+      <h1 className="mt-5 text-2xl font-bold text-slate-950">
+        Client documents
+      </h1>
+
+      <p className="mx-auto mt-3 max-w-2xl leading-7 text-slate-600">
+        Secure document upload, versioning, review, approval,
+        expiration tracking, notes, preview, and download controls
+        are being connected to this workspace.
+      </p>
+    </section>
+  );
+}
+
+
+=== WORKSPACE NAVIGATION ===
+import {
+  Building2,
+  ClipboardCheck,
+  FileText,
+  LayoutDashboard,
+  Users,
+} from "lucide-react";
+
+import {
+  NavLink,
+} from "react-router";
+
+const ITEMS = [
+  {
+    end: true,
+    label: "Overview",
+    path: "",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Profile",
+    path: "profile",
+    icon: Building2,
+  },
+  {
+    label: "Contacts",
+    path: "contacts",
+    icon: Users,
+  },
+  {
+    label: "Onboarding",
+    path: "onboarding",
+    icon: ClipboardCheck,
+  },
+  {
+    label: "Documents",
+    path: "documents",
+    icon: FileText,
+  },
+];
+
+export default function ClientWorkspaceNavigation() {
+  return (
+    <nav
+      aria-label="Client workspace"
+      className="flex gap-2 overflow-x-auto border-b border-slate-200 px-2"
+    >
+      {ITEMS.map(
+        ({
+          end,
+          label,
+          path,
+          icon: Icon,
+        }) => (
+          <NavLink
+            key={label}
+            end={end}
+            to={path || "."}
+            className={({
+              isActive,
+            }) =>
+              [
+                "inline-flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-4 text-sm font-bold transition",
+                isActive
+                  ? "border-blue-600 text-blue-700"
+                  : "border-transparent text-slate-500 hover:text-slate-900",
+              ].join(" ")
+            }
+          >
+            <Icon size={17} />
+            {label}
+          </NavLink>
+        ),
+      )}
+    </nav>
+  );
+}
+
+
+=== CLIENT ROUTES ===
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+} from "react-router";
+
+import AppDashboardPage from "../shell/AppDashboardPage";
+import AppShell from "../shell/AppShell";
+
+import {
+  AuthGuard,
+  GuestGuard,
+} from "../../platform/auth";
+
+import AuthenticationLayout from "../../modules/authentication/AuthenticationLayout";
+import JoinPage from "../../modules/authentication/pages/JoinPage";
+import RegistrationPlaceholderPage from "../../modules/authentication/pages/RegistrationPlaceholderPage";
+import SignInPage from "../../modules/authentication/pages/SignInPage";
+
+import {
+  ClientContactsPage,
+  ClientDirectoryPage,
+  ClientDocumentsPage,
+  ClientOnboardingPage,
+  ClientOverviewPage,
+  ClientProfilePage,
+  ClientWorkspaceLayout,
+} from "../../modules/clients";
+import {
+  OrganizationLayout,
+} from "../../modules/organizations/layouts";
+
+import {
+  OrganizationSettingsPage,
+  OrganizationBillingPage,
+  OrganizationBrandingPage,
+  OrganizationDepartmentsPage,
+  OrganizationLocationsPage,
+  OrganizationMembersPage,
+  OrganizationOverviewPage,
+  OrganizationPlaceholderPage,
+  OrganizationProfilePage,
+} from "../../modules/organizations/pages";
+
+import PublicLayout from "../../public-site/layouts/PublicLayout";
+import LandingPage from "../../public-site/pages/LandingPage";
+import NotFoundPage from "../../public-site/pages/NotFoundPage";
+
+export default function AppRouter() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route element={<PublicLayout />}>
+          <Route
+            index
+            element={<LandingPage />}
+          />
+        </Route>
+
+        <Route element={<GuestGuard />}>
+          <Route element={<AuthenticationLayout />}>
+            <Route
+              path="sign-in"
+              element={<SignInPage />}
+            />
+
+            <Route
+              path="join"
+              element={<JoinPage />}
+            />
+
+            <Route
+              path="join/:accountType"
+              element={<RegistrationPlaceholderPage />}
+            />
+          </Route>
+        </Route>
+
+        <Route element={<AuthGuard />}>
+          <Route
+            path="app"
+            element={<AppShell />}
+          >
+            <Route
+              index
+              element={<AppDashboardPage />}
+            />
+
+            <Route
+              path="organization"
+              element={<OrganizationLayout />}
+            >
+              <Route
+                index
+                element={<OrganizationOverviewPage />}
+              />
+
+              <Route
+                path="profile"
+                element={<OrganizationProfilePage />}
+              />
+
+              <Route
+                path="locations"
+                element={<OrganizationLocationsPage />}
+              />
+
+              <Route
+                path="departments"
+                element={<OrganizationDepartmentsPage />}
+              />
+
+              <Route
+                path="branding"
+                element={<OrganizationBrandingPage />}
+              />
+
+              <Route
+                path="billing"
+                element={<OrganizationBillingPage />}
+              />
+
+              <Route
+                path="settings"
+                element={<OrganizationSettingsPage />}
+              />
+
+              <Route
+                path="members"
+                element={<OrganizationMembersPage />}
+              />
+            </Route>
+
+            <Route
+              path="clients"
+            >
+              <Route
+                index
+                element={<ClientDirectoryPage />}
+              />
+
+              <Route
+                path=":relationshipId"
+                element={<ClientWorkspaceLayout />}
+              >
+                <Route
+                  index
+                  element={<ClientOverviewPage />}
+                />
+
+                <Route
+                  path="profile"
+                  element={<ClientProfilePage />}
+                />
+
+                <Route
+                  path="contacts"
+                  element={<ClientContactsPage />}
+                />
+
+                <Route
+                  path="onboarding"
+                  element={<ClientOnboardingPage />}
+                />
+
+                <Route
+                  path="documents"
+                  element={<ClientDocumentsPage />}
+                />
+              </Route>
+            </Route>
+
+            <Route
+              path="contractors"
+              element={<OrganizationPlaceholderPage />}
+            />
+
+            <Route
+              path="jobs"
+              element={<OrganizationPlaceholderPage />}
+            />
+          </Route>
+        </Route>
+
+        <Route
+          path="login"
+          element={
+            <Navigate
+              to="/sign-in"
+              replace
+            />
+          }
+        />
+
+        <Route
+          path="*"
+          element={<NotFoundPage />}
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+
+=== CLIENT MODULE EXPORTS ===
+export {
+  ClientContactsRepository,
+  ClientOnboardingRepository,
+  ClientOrganizationsRepository,
+  clientContactsRepository,
+  clientOnboardingRepository,
+  clientOrganizationsRepository,
+  createClientContactsRepository,
+  createClientOnboardingRepository,
+  createClientOrganizationsRepository,
+} from "./api";
+
+export {
+  mapClientContact,
+  mapClientOnboarding,
+  mapClientOrganization,
+  mapClientRelationship,
+} from "./utils";
+
+export {
+  ClientOrganizationService,
+  clientOrganizationService,
+  createClientOrganizationService,
+} from "./services";
+export {
+  ClientContext,
+  ClientProvider,
+  useClient,
+} from "./context";
+export {
+  ClientContactsPage,
+  ClientDirectoryPage,
+  ClientDocumentsPage,
+  ClientOnboardingPage,
+  ClientOverviewPage,
+  ClientProfilePage,
+} from "./pages";
+export {
+  ClientWorkspaceLayout,
+} from "./layouts";
+export {
+  ClientDocumentsRepository,
+  clientDocumentsRepository,
+  createClientDocumentsRepository,
+} from "./api";
+
+export {
+  CLIENT_DOCUMENT_ALLOWED_MIME_TYPES,
+  CLIENT_DOCUMENT_BUCKET,
+  CLIENT_DOCUMENT_MAX_FILE_SIZE,
+  ClientDocumentStorage,
+  ClientDocumentsService,
+  clientDocumentStorage,
+  clientDocumentsService,
+  createClientDocumentStorage,
+  createClientDocumentsService,
+} from "./services";
+
+export {
+  mapClientDocument,
+  mapClientDocumentActivity,
+  mapClientDocumentNote,
+  mapClientDocumentVersion,
+} from "./utils";

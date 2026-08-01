@@ -1,6 +1,7 @@
-﻿import {
+import {
   Building2,
   ClipboardCheck,
+  FileText,
   LayoutDashboard,
   Users,
 } from "lucide-react";
@@ -30,6 +31,11 @@ const ITEMS = [
     label: "Onboarding",
     path: "onboarding",
     icon: ClipboardCheck,
+  },
+  {
+    label: "Documents",
+    path: "documents",
+    icon: FileText,
   },
 ];
 

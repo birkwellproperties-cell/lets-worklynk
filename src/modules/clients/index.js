@@ -30,6 +30,7 @@ export {
 export {
   ClientContactsPage,
   ClientDirectoryPage,
+  ClientDocumentsPage,
   ClientOnboardingPage,
   ClientOverviewPage,
   ClientProfilePage,
@@ -37,3 +38,27 @@ export {
 export {
   ClientWorkspaceLayout,
 } from "./layouts";
+export {
+  ClientDocumentsRepository,
+  clientDocumentsRepository,
+  createClientDocumentsRepository,
+} from "./api";
+
+export {
+  CLIENT_DOCUMENT_ALLOWED_MIME_TYPES,
+  CLIENT_DOCUMENT_BUCKET,
+  CLIENT_DOCUMENT_MAX_FILE_SIZE,
+  ClientDocumentStorage,
+  ClientDocumentsService,
+  clientDocumentStorage,
+  clientDocumentsService,
+  createClientDocumentStorage,
+  createClientDocumentsService,
+} from "./services";
+
+export {
+  mapClientDocument,
+  mapClientDocumentActivity,
+  mapClientDocumentNote,
+  mapClientDocumentVersion,
+} from "./utils";

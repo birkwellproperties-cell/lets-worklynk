@@ -1,4 +1,4 @@
-﻿export {
+export {
   default as ClientContactsPage,
 } from "./ClientContactsPage";
 
@@ -17,3 +17,7 @@ export {
 export {
   default as ClientProfilePage,
 } from "./ClientProfilePage";
+
+export {
+  default as ClientDocumentsPage,
+} from "./ClientDocumentsPage";

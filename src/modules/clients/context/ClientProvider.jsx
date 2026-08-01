@@ -10,6 +10,7 @@ import {
 } from "../../../platform/auth";
 
 import {
+  clientDocumentsService,
   clientOrganizationService,
 } from "../services";
 
@@ -609,6 +610,298 @@ export default function ClientProvider({
       ],
     );
 
+  const getClientDocuments =
+    useCallback(
+      async (
+        relationshipId,
+        options,
+      ) =>
+        clientDocumentsService
+          .getDocuments(
+            relationshipId,
+            options,
+          ),
+      [],
+    );
+
+  const getClientDocumentWorkspace =
+    useCallback(
+      async (
+        documentId,
+      ) =>
+        clientDocumentsService
+          .getDocumentWorkspace(
+            documentId,
+          ),
+      [],
+    );
+
+  const createClientDocument =
+    useCallback(
+      async ({
+        relationshipId,
+        clientOrganizationId,
+        payload,
+        file,
+      }) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .createDocument({
+                relationshipId,
+                clientOrganizationId,
+                payload,
+                file,
+                actorUserId:
+                  user?.id ?? null,
+              }),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const uploadClientDocumentVersion =
+    useCallback(
+      async ({
+        relationshipId,
+        documentId,
+        file,
+        changeSummary,
+      }) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .uploadVersion({
+                relationshipId,
+                documentId,
+                file,
+                changeSummary,
+                actorUserId:
+                  user?.id ?? null,
+              }),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const updateClientDocument =
+    useCallback(
+      async (
+        documentId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .updateDocument(
+                documentId,
+                payload,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const submitClientDocumentForReview =
+    useCallback(
+      async (
+        documentId,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .submitForReview(
+                documentId,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const approveClientDocument =
+    useCallback(
+      async (
+        documentId,
+        reviewNotes,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .approveDocument(
+                documentId,
+                user?.id ?? null,
+                reviewNotes,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const rejectClientDocument =
+    useCallback(
+      async (
+        documentId,
+        reviewNotes,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .rejectDocument(
+                documentId,
+                user?.id ?? null,
+                reviewNotes,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const archiveClientDocument =
+    useCallback(
+      async (
+        documentId,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .archiveDocument(
+                documentId,
+                user?.id ?? null,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const restoreClientDocument =
+    useCallback(
+      async (
+        documentId,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .restoreDocument(
+                documentId,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+      ],
+    );
+
+  const addClientDocumentNote =
+    useCallback(
+      async (
+        documentId,
+        payload,
+      ) =>
+        runSave(
+          () =>
+            clientDocumentsService
+              .addNote(
+                documentId,
+                payload,
+                user?.id ?? null,
+              ),
+          {
+            refreshDirectory:
+              false,
+            refreshWorkspace:
+              false,
+          },
+        ),
+      [
+        runSave,
+        user?.id,
+      ],
+    );
+
+  const createClientDocumentSignedUrl =
+    useCallback(
+      async (
+        versionId,
+        expiresInSeconds,
+      ) =>
+        clientDocumentsService
+          .createSignedUrl(
+            versionId,
+            expiresInSeconds,
+          ),
+      [],
+    );
+
+  const downloadClientDocumentVersion =
+    useCallback(
+      async (
+        versionId,
+      ) =>
+        clientDocumentsService
+          .downloadVersion(
+            versionId,
+          ),
+      [],
+    );
   const saveOnboarding =
     useCallback(
       async (
@@ -691,25 +984,51 @@ export default function ClientProvider({
         setPrimaryContact,
         archiveContact,
         restoreContact,
+        getClientDocuments,
+        getClientDocumentWorkspace,
+        createClientDocument,
+        uploadClientDocumentVersion,
+        updateClientDocument,
+        submitClientDocumentForReview,
+        approveClientDocument,
+        rejectClientDocument,
+        archiveClientDocument,
+        restoreClientDocument,
+        addClientDocumentNote,
+        createClientDocumentSignedUrl,
+        downloadClientDocumentVersion,
         saveOnboarding,
         setFilters,
         clearError,
       }),
       [
+        addClientDocumentNote,
+        approveClientDocument,
+        archiveClientDocument,
         archiveContact,
         changeRelationshipStatus,
+        createClientDocument,
+        createClientDocumentSignedUrl,
         clearError,
         createClient,
         createContact,
+        downloadClientDocumentVersion,
         getClientContacts,
+        getClientDocumentWorkspace,
+        getClientDocuments,
         loadClientWorkspace,
         refreshClients,
+        rejectClientDocument,
+        restoreClientDocument,
         restoreContact,
         saveOnboarding,
         selectClient,
         setPrimaryContact,
         setFilters,
         state,
+        submitClientDocumentForReview,
+        updateClientDocument,
+        uploadClientDocumentVersion,
         updateClientOrganization,
         updateClientProfileWorkspace,
         updateContact,
